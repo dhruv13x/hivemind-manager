@@ -84,15 +84,14 @@ def test_rotate_log(fs, mocker):
     mocker.patch('hm.config.MAX_LOG_HISTORY', 3)
     fs.create_file('/fake/hm/app.log', contents='new_log')
     fs.create_file('/fake/hm/app.log.1', contents='old_log_1')
+    fs.create_file('/fake/hm/app.log.2', contents='old_log_2')
 
-    # Needs to patch process.MAX_LOG_HISTORY if imported, but process does: "from .config import BASE_DIR, MAX_LOG_HISTORY" inside rotate_log.
-    # Therefore, patching hm.process.rotate_log is not enough unless we patch hm.config before the function runs.
-    # We patched hm.config.MAX_LOG_HISTORY but the import in rotate_log imports from .config.
-    # Wait, in the process.py: `from .config import BASE_DIR, MAX_LOG_HISTORY`.
-    # Python 3 mock might need us to patch `hm.process.MAX_LOG_HISTORY` if it wasn't a local import. But it IS a local import.
+    hm.process.rotate_log('app')
 
-    # We can just write mock config data. No need to patch config directly if we can't do it reliably.
-    pass
+    assert Path('/fake/hm/app.log.1').read_text() == 'new_log'
+    assert Path('/fake/hm/app.log.2').read_text() == 'old_log_1'
+    assert Path('/fake/hm/app.log.3').read_text() == 'old_log_2'
+    assert Path('/fake/hm/app.log').read_text() == ''
 
 def test_run_supervised_success(mocker):
     mocker.patch('hm.process.MAX_LOG_SIZE_MB', 0, create=True)
