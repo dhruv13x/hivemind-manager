@@ -120,10 +120,37 @@ def stop_service(service):
         print(f"[{service}] not running")
 
 
+def rotate_log(service):
+    """
+    Rotates log files for a service execution-style:
+    log.4 -> log.5
+    ...
+    log -> log.1
+    """
+    from .config import BASE_DIR, MAX_LOG_HISTORY
+    import shutil
+
+    for i in range(MAX_LOG_HISTORY - 1, 0, -1):
+        old_file = BASE_DIR / f"{service}.log.{i}"
+        new_file = BASE_DIR / f"{service}.log.{i+1}"
+        if old_file.exists():
+            new_file.unlink(missing_ok=True)
+            old_file.rename(new_file)
+
+    current_log = BASE_DIR / f"{service}.log"
+    if current_log.exists() and current_log.stat().st_size > 0:
+        log_1 = BASE_DIR / f"{service}.log.1"
+        log_1.unlink(missing_ok=True)
+        shutil.copy2(current_log, log_1)
+        with open(current_log, "wb") as f:
+            f.truncate(0)
+
+
 def run_supervised(service, extra_args):
     """
     Supervisor process loop. Monitors a single hivemind worker and restarts it if it crashes.
     """
+    from .config import MAX_LOG_SIZE_MB
     logfile = log_file(service)
 
     stop_flag = False
@@ -155,7 +182,21 @@ def run_supervised(service, extra_args):
 
         print(f"[{service}] worker started (PID {child_proc.pid})")
 
-        exit_code = child_proc.wait()
+        exit_code = None
+        while exit_code is None and not stop_flag:
+            exit_code = child_proc.poll()
+            if exit_code is not None:
+                break
+
+            if MAX_LOG_SIZE_MB > 0 and logfile.exists():
+                try:
+                    if logfile.stat().st_size > MAX_LOG_SIZE_MB * 1024 * 1024:
+                        print(f"[{service}] log exceeded {MAX_LOG_SIZE_MB}MB, rotating...")
+                        rotate_log(service)
+                except OSError:
+                    pass
+
+            time.sleep(1.0)
 
         if stop_flag:
             break
