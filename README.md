@@ -1,299 +1,292 @@
-Hivemind Manager
+# Hivemind Manager
 
-Hivemind Manager ("hm") is a developer-focused process manager built on top of Hivemind.
+**Hivemind Manager** (`hm`) is a developer-focused process manager built on top of Hivemind.
 
 It provides service discovery, dependency management, supervision, automatic restarts, log management, and project-aware workflows for local development environments.
 
-Instead of manually managing multiple Hivemind processes, "hm" treats your workspace as a collection of services and provides a unified CLI for operating them.
+Instead of manually managing multiple Hivemind processes, `hm` treats your workspace as a collection of services and provides a unified CLI for operating them.
 
 ---
 
-Features
+## Features
 
-- Automatic discovery of "*.hm" service definitions
+- Automatic discovery of `*.hm` service definitions
 - Project-aware workspace detection
-- Dependency resolution via "# depends_on:"
+- Dependency resolution via `# depends_on:`
 - Supervisor process with automatic restart backoff
 - PID tracking and process lifecycle management
 - Orphaned process cleanup
 - Multi-service log management
 - Execution-based log rotation
-- Project-local configuration via "pyproject.toml"
+- Project-local configuration via `pyproject.toml`
 - Works from any subdirectory inside a project
 - Lightweight and Hivemind-compatible
 
 ---
 
-Installation
+## Installation
 
-From PyPI
-
+### From PyPI
+```bash
 pip install hivemind-manager==0.1.0
+```
 
-From Source
-
+### From Source
+```bash
 git clone git@github.com:dhruv13x/hivemind-manager.git
-
 cd hivemind-manager
-
 pip install -e .
+```
 
 ---
 
-Requirements
+## Requirements
 
 - Python 3.8+
-- Hivemind installed and available on PATH
+- Hivemind installed and available on `PATH`
 
 Verify installation:
-
+```bash
 hivemind --version
+```
 
 ---
 
-Quick Start
+## Quick Start
 
 Inside your project:
-
+```bash
 hm init
+```
 
 This creates a project configuration:
-
+```toml
 [tool.hm]
 home_dir = "hm"
 preserve_logs = true
 max_log_history = 5
 max_log_size_mb = 0
+```
 
 Then start services:
-
+```bash
 hm up
+```
 
 Check status:
-
+```bash
 hm ps
+```
 
 Stop everything:
-
+```bash
 hm down
+```
 
 ---
 
-Service Definitions
+## Service Definitions
 
 Services are defined using standard Hivemind files.
 
-Example:
-
-infra.hm
-
+**Example: `infra.hm`**
+```
 api: uvicorn app.main:app --host 0.0.0.0 --port 8000
 worker: python -m app.worker
+```
 
-transfer.hm
-
+**Example: `transfer.hm`**
+```
 # depends_on: infra
-
 transfer_bot: python -m services.transfer_bot.main
+```
 
 ---
 
-Dependency Management
+## Dependency Management
 
 Dependencies are declared using comments:
-
+```
 # depends_on: infra
-
-Example:
-
-# depends_on: infra
-
-transfer_bot: python -m services.transfer_bot.main
+```
 
 When starting:
-
+```bash
 hm start transfer
+```
 
-"hm" automatically starts:
-
+`hm` automatically starts:
+```
 infra
 └── transfer
-
+```
 if the dependency is not already running.
 
 ---
 
-Project Discovery
+## Project Discovery
 
-"hm" automatically discovers project roots using:
+`hm` automatically discovers project roots using:
 
-1. "HM_PROJECT_ROOT"
-2. "pyproject.toml" containing "[tool.hm]"
-3. ".hm" service definitions
+1. `HM_PROJECT_ROOT`
+2. `pyproject.toml` containing `[tool.hm]`
+3. `.hm` service definitions
 4. Current working directory
 
-This means commands work from anywhere inside the project:
-
+Commands work from anywhere inside the project:
+```bash
 cd scripts/dev
-
 hm ps
 hm start infra
 hm logs transfer
+```
 
 ---
 
-Commands
+## Commands
 
-Initialize Project
-
+### Initialize Project
+```bash
 hm init
-
+```
 Create project configuration and HM workspace.
 
----
-
-List Services
-
+### List Services
+```bash
 hm list
-
-Example:
-
+```
+**Example:**
+```
 Detected services:
 
 ✓ infra
 ✓ transfer
 ✓ bypass
 ✓ uab
+```
 
----
-
-Show Status
-
+### Show Status
+```bash
 hm ps
-
-Example:
-
+```
+**Example:**
+```
 SERVICE         STATUS
 ----------------------
 infra           running
 transfer        running
 uab             stopped
+```
 
----
-
-Start Service
-
+### Start Service
+```bash
 hm start infra
-
+```
 Without log following:
-
+```bash
 hm start infra --no-follow
+```
 
----
-
-Stop Service
-
+### Stop Service
+```bash
 hm stop infra
+```
 
----
-
-Restart Service
-
+### Restart Service
+```bash
 hm restart infra
+```
 
----
-
-View Logs
-
+### View Logs
+```bash
 hm logs infra
-
+```
 Multiple services:
-
+```bash
 hm logs infra transfer uab
+```
 
----
-
-Start All Services
-
+### Start All Services
+```bash
 hm up
+```
 
----
-
-Stop All Services
-
+### Stop All Services
+```bash
 hm down
+```
 
----
-
-Diagnostics
-
+### Diagnostics
+```bash
 hm doctor
-
-Example:
-
+```
+**Example:**
+```
 Project Root : /workspace/bot_platform
 HM Home      : /workspace/bot_platform/hm
 Config File  : /workspace/bot_platform/pyproject.toml
 Hivemind Bin : /usr/local/bin/hivemind
+```
 
 ---
 
-Log Management
+## Log Management
 
 Each service receives:
-
+```
 hm/
 ├── infra.log
 ├── infra.log.1
 ├── infra.log.2
 ├── infra.pid
+```
 
 Execution-based rotation preserves previous runs:
-
-infra.log      current execution
-infra.log.1    previous execution
-infra.log.2    older execution
+- `infra.log` — current execution
+- `infra.log.1` — previous execution
+- `infra.log.2` — older execution
 
 This makes debugging service restarts straightforward.
 
 ---
 
-Configuration
+## Configuration
 
-Project configuration lives in:
-
+Project configuration lives in `pyproject.toml`:
+```toml
 [tool.hm]
 home_dir = "hm"
 preserve_logs = true
 max_log_history = 5
 max_log_size_mb = 0
+```
 
-Options
-
-Option| Description
-"home_dir"| Directory used for logs and PID files
-"preserve_logs"| Preserve previous execution logs
-"max_log_history"| Number of historical logs to keep
-"max_log_size_mb"| Size-based rotation threshold (0 disables)
-
----
-
-Environment Variables
-
-Override configuration:
-
-HM_PROJECT_ROOT=/workspace/project
-HM_HOME_DIR=/tmp/hm
-HM_HIVEMIND_BIN=/usr/local/bin/hivemind
+| Option | Description |
+|--------|-------------|
+| `home_dir` | Directory used for logs and PID files |
+| `preserve_logs` | Preserve previous execution logs |
+| `max_log_history` | Number of historical logs to keep |
+| `max_log_size_mb` | Size-based rotation threshold (`0` disables) |
 
 ---
 
-Why Hivemind Manager?
+## Environment Variables
+
+Override configuration via environment:
+
+| Variable | Purpose |
+|----------|---------|
+| `HM_PROJECT_ROOT` | Override project root detection |
+| `HM_HOME_DIR` | Override logs/PID directory |
+| `HM_HIVEMIND_BIN` | Override Hivemind binary path |
+
+---
+
+## Why Hivemind Manager?
 
 Hivemind excels at running processes.
 
-Hivemind Manager adds:
-
+**Hivemind Manager adds:**
 - Service-level supervision
 - Dependency resolution
 - Project discovery
@@ -301,12 +294,11 @@ Hivemind Manager adds:
 - Process cleanup
 - Workspace-aware workflows
 
-without replacing Hivemind itself.
+*without replacing Hivemind itself.*
 
 ---
 
-License
+## License
 
-MIT License
-
+**MIT License**  
 Copyright (c) dhruv13x
