@@ -2,7 +2,15 @@ import sys
 import time
 import subprocess
 from pathlib import Path
-from .config import PROJECT_ROOT, HIVEMIND_BIN
+from .config import (
+    PROJECT_ROOT,
+    HIVEMIND_BIN,
+    BASE_DIR,
+    PRESERVE_LOGS,
+    MAX_LOG_HISTORY,
+    MAX_LOG_SIZE_MB,
+    tomllib,
+)
 from .discovery import discover_services
 from .process import (
     read_pid,
@@ -10,7 +18,9 @@ from .process import (
     log_file,
     stop_service,
     run_supervised,
-    remove_pid
+    remove_pid,
+    rotate_log,
+    write_pid,
 )
 from .tailer import multi_tail
 
@@ -53,8 +63,6 @@ def start(service, follow=True, extra_args=None, started_set=None):
     stop_service(service)
 
     logfile = log_file(service)
-    from .config import PRESERVE_LOGS
-    from .process import rotate_log
     
     if PRESERVE_LOGS:
         rotate_log(service)
@@ -72,7 +80,6 @@ def start(service, follow=True, extra_args=None, started_set=None):
         cwd=str(PROJECT_ROOT),
     )
 
-    from .process import write_pid
     write_pid(service, proc.pid)
 
     print(f"[{service}] supervisor started (PID {proc.pid})")
@@ -269,7 +276,6 @@ max_log_size_mb = 0.0
                 "max_log_size_mb": 'max_log_size_mb = 0.0'
             }
             try:
-                from .config import tomllib
                 data = tomllib.loads(text)
                 hm_data = data.get("tool", {}).get("hm", {})
                 for k in list(missing.keys()):
@@ -292,7 +298,6 @@ max_log_size_mb = 0.0
                 config_status = "Configuration already exists in pyproject.toml"
 
     # 2. Create home directory
-    from .config import BASE_DIR
     BASE_DIR.mkdir(parents=True, exist_ok=True)
 
     print(f"\u2713 Project root: {project_root}")
@@ -305,14 +310,12 @@ def doctor():
     Prints diagnostic information about the current workspace configuration.
     """
     import shutil
-    from .config import PROJECT_ROOT, BASE_DIR, HIVEMIND_BIN
 
     # 1. Config file check
     pyproject_path = PROJECT_ROOT / "pyproject.toml"
     if pyproject_path.is_file():
         has_config = False
         try:
-            from .config import tomllib
             with open(pyproject_path, "rb") as f:
                 data = tomllib.load(f)
             has_config = "tool" in data and "hm" in data["tool"]
@@ -332,7 +335,6 @@ def doctor():
     else:
         bin_str = f"{HIVEMIND_BIN} [NOT FOUND in PATH]"
 
-    from .config import PRESERVE_LOGS, MAX_LOG_HISTORY, MAX_LOG_SIZE_MB
     size_str = f"{MAX_LOG_SIZE_MB} MB" if MAX_LOG_SIZE_MB > 0 else "disabled"
 
     from .ui.console import is_interactive, console

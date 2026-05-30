@@ -2,8 +2,17 @@ import os
 import sys
 import time
 import signal
+import shutil
 import subprocess
-from .config import BASE_DIR, PROJECT_ROOT, HIVEMIND_BIN, RESTART_DELAY, MAX_RESTART_DELAY
+from .config import (
+    BASE_DIR,
+    PROJECT_ROOT,
+    HIVEMIND_BIN,
+    RESTART_DELAY,
+    MAX_RESTART_DELAY,
+    MAX_LOG_HISTORY,
+    MAX_LOG_SIZE_MB,
+)
 
 def pid_file(service):
     return BASE_DIR / f"{service}.pid"
@@ -127,9 +136,6 @@ def rotate_log(service):
     ...
     log -> log.1
     """
-    from .config import BASE_DIR, MAX_LOG_HISTORY
-    import shutil
-
     for i in range(MAX_LOG_HISTORY - 1, 0, -1):
         old_file = BASE_DIR / f"{service}.log.{i}"
         new_file = BASE_DIR / f"{service}.log.{i+1}"
@@ -146,11 +152,11 @@ def rotate_log(service):
             f.truncate(0)
 
 
+
 def run_supervised(service, extra_args):
     """
     Supervisor process loop. Monitors a single hivemind worker and restarts it if it crashes.
     """
-    from .config import MAX_LOG_SIZE_MB
     logfile = log_file(service)
 
     stop_flag = False

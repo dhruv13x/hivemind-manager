@@ -26,8 +26,8 @@ def test_cli_start_with_dependencies(mocker, capsys):
     mocker.patch('hm.cli.is_running', return_value=True)
 
     mock_stop = mocker.patch('hm.cli.stop_service')
-    mocker.patch('hm.process.rotate_log')
-    mocker.patch('hm.config.PRESERVE_LOGS', True)
+    mocker.patch('hm.cli.rotate_log')
+    mocker.patch('hm.cli.PRESERVE_LOGS', True)
 
     mocker.patch('hm.cli.log_file', return_value=Path('/fake/log'))
     mocker.patch('builtins.open', mocker.mock_open())
@@ -37,7 +37,7 @@ def test_cli_start_with_dependencies(mocker, capsys):
 
     mocker.patch('sys.executable', '/mock/python')
     mocker.patch('hm.cli.multi_tail')
-    mocker.patch('hm.process.write_pid')
+    mocker.patch('hm.cli.write_pid')
 
     hm.cli.start('app', follow=True)
 
@@ -57,7 +57,7 @@ def test_cli_start_with_dependencies_not_running(mocker, capsys):
     mocker.patch("hm.cli.is_running", side_effect=[False, True])
 
     mock_stop = mocker.patch('hm.cli.stop_service')
-    mocker.patch('hm.config.PRESERVE_LOGS', False)
+    mocker.patch('hm.cli.PRESERVE_LOGS', False)
 
     mocker.patch('hm.cli.log_file', return_value=Path('/fake/log'))
     mocker.patch('builtins.open', mocker.mock_open())
@@ -66,7 +66,7 @@ def test_cli_start_with_dependencies_not_running(mocker, capsys):
     mock_popen.return_value.pid = 9999
 
     mocker.patch('time.sleep')
-    mocker.patch('hm.process.write_pid')
+    mocker.patch('hm.cli.write_pid')
 
     hm.cli.start('app', follow=False)
 
@@ -125,7 +125,7 @@ def test_cli_init_no_files_non_interactive(fs, mocker, capsys, monkeypatch):
     mocker.patch('sys.stdout.isatty', return_value=False)
     mocker.patch('sys.stdin.isatty', return_value=False)
 
-    mocker.patch('hm.config.BASE_DIR', Path('/fake/repo/hm'))
+    mocker.patch('hm.cli.BASE_DIR', Path('/fake/repo/hm'))
 
     hm.cli.init()
 
@@ -138,7 +138,7 @@ def test_cli_init_with_files_new_pyproject(fs, mocker, capsys, monkeypatch):
     fs.create_file('/fake/repo/app.hm', contents='')
     monkeypatch.chdir('/fake/repo')
 
-    mocker.patch('hm.config.BASE_DIR', Path('/fake/repo/hm'))
+    mocker.patch('hm.cli.BASE_DIR', Path('/fake/repo/hm'))
 
     hm.cli.init()
 
@@ -153,7 +153,7 @@ def test_cli_init_append_pyproject(fs, mocker, capsys, monkeypatch):
     fs.create_file('/fake/repo/pyproject.toml', contents='[tool.pytest]\n')
     monkeypatch.chdir('/fake/repo')
 
-    mocker.patch('hm.config.BASE_DIR', Path('/fake/repo/hm'))
+    mocker.patch('hm.cli.BASE_DIR', Path('/fake/repo/hm'))
 
     hm.cli.init()
 
@@ -167,7 +167,7 @@ def test_cli_init_update_missing_keys(fs, mocker, capsys, monkeypatch):
     fs.create_file('/fake/repo/pyproject.toml', contents='[tool.hm]\nhome_dir = "hm"\n')
     monkeypatch.chdir('/fake/repo')
 
-    mocker.patch('hm.config.BASE_DIR', Path('/fake/repo/hm'))
+    mocker.patch('hm.cli.BASE_DIR', Path('/fake/repo/hm'))
 
     hm.cli.init()
 
@@ -184,7 +184,7 @@ def test_cli_init_already_configured(fs, mocker, capsys, monkeypatch):
     fs.create_file('/fake/repo/pyproject.toml', contents='[tool.hm]\nhome_dir = "hm"\npreserve_logs = true\nmax_log_history = 5\nmax_log_size_mb = 0.0\n')
     monkeypatch.chdir('/fake/repo')
 
-    mocker.patch('hm.config.BASE_DIR', Path('/fake/repo/hm'))
+    mocker.patch('hm.cli.BASE_DIR', Path('/fake/repo/hm'))
 
     hm.cli.init()
 
@@ -197,7 +197,7 @@ def test_cli_init_invalid_toml(fs, mocker, capsys, monkeypatch):
     fs.create_file('/fake/repo/pyproject.toml', contents='[tool.hm]\n[invalid\n')
     monkeypatch.chdir('/fake/repo')
 
-    mocker.patch('hm.config.BASE_DIR', Path('/fake/repo/hm'))
+    mocker.patch('hm.cli.BASE_DIR', Path('/fake/repo/hm'))
 
     hm.cli.init()
 
@@ -211,7 +211,7 @@ def test_cli_init_interactive_yes(fs, mocker, capsys, monkeypatch):
     mocker.patch('sys.stdout.isatty', return_value=True)
     mocker.patch('sys.stdin.isatty', return_value=True)
     mocker.patch('builtins.input', return_value='y')
-    mocker.patch('hm.config.BASE_DIR', Path('/fake/repo/hm'))
+    mocker.patch('hm.cli.BASE_DIR', Path('/fake/repo/hm'))
 
     hm.cli.init()
 
@@ -226,14 +226,14 @@ def test_cli_doctor_interactive_fixed(fs, mocker, capsys, monkeypatch):
     mock_doctor_panel = mocker.patch('hm.ui.panels.render_doctor_panel', return_value="panel")
 
     fs.create_file('/fake/repo/pyproject.toml', contents='[tool.hm]')
-    mocker.patch('hm.config.PROJECT_ROOT', Path('/fake/repo'))
-    mocker.patch('hm.config.BASE_DIR', Path('/fake/repo/hm'))
-    mocker.patch('hm.config.HIVEMIND_BIN', 'hivemind')
+    mocker.patch('hm.cli.PROJECT_ROOT', Path('/fake/repo'))
+    mocker.patch('hm.cli.BASE_DIR', Path('/fake/repo/hm'))
+    mocker.patch('hm.cli.HIVEMIND_BIN', 'hivemind')
     mocker.patch('shutil.which', return_value='/usr/bin/hivemind')
 
-    mocker.patch('hm.config.PRESERVE_LOGS', True)
-    mocker.patch('hm.config.MAX_LOG_HISTORY', 5)
-    mocker.patch('hm.config.MAX_LOG_SIZE_MB', 50.0)
+    mocker.patch('hm.cli.PRESERVE_LOGS', True)
+    mocker.patch('hm.cli.MAX_LOG_HISTORY', 5)
+    mocker.patch('hm.cli.MAX_LOG_SIZE_MB', 50.0)
 
     mocker.patch('hm.cli.discover_services', return_value={'app': {}})
 
@@ -244,13 +244,13 @@ def test_cli_doctor_interactive_fixed(fs, mocker, capsys, monkeypatch):
 
 def test_cli_doctor_non_interactive_fixed(fs, mocker, capsys, monkeypatch):
     mocker.patch('hm.ui.console.is_interactive', return_value=False)
-    mocker.patch('hm.config.PROJECT_ROOT', Path('/fake/repo'))
-    mocker.patch('hm.config.BASE_DIR', Path('/fake/repo/hm'))
-    mocker.patch('hm.config.HIVEMIND_BIN', 'hivemind')
+    mocker.patch('hm.cli.PROJECT_ROOT', Path('/fake/repo'))
+    mocker.patch('hm.cli.BASE_DIR', Path('/fake/repo/hm'))
+    mocker.patch('hm.cli.HIVEMIND_BIN', 'hivemind')
     mocker.patch('shutil.which', return_value=None)
-    mocker.patch('hm.config.PRESERVE_LOGS', False)
-    mocker.patch('hm.config.MAX_LOG_HISTORY', 5)
-    mocker.patch('hm.config.MAX_LOG_SIZE_MB', 0.0)
+    mocker.patch('hm.cli.PRESERVE_LOGS', False)
+    mocker.patch('hm.cli.MAX_LOG_HISTORY', 5)
+    mocker.patch('hm.cli.MAX_LOG_SIZE_MB', 0.0)
 
     mocker.patch('hm.cli.discover_services', return_value={'app': {}})
 
@@ -265,7 +265,7 @@ def test_cli_doctor_pyproject_without_tool_hm_fixed(fs, mocker, capsys):
     mocker.patch('hm.ui.console.is_interactive', return_value=False)
     # the doctor() uses PROJECT_ROOT directly from hm.cli which was imported from hm.config
     mocker.patch('hm.cli.PROJECT_ROOT', Path('/fake/repo'))
-    mocker.patch('hm.config.PROJECT_ROOT', Path('/fake/repo'))
+    mocker.patch('hm.cli.PROJECT_ROOT', Path('/fake/repo'))
     fs.create_dir('/fake/repo')
     fs.create_file('/fake/repo/pyproject.toml', contents='[tool.other]\n')
     mocker.patch('shutil.which', return_value='/bin/hm')

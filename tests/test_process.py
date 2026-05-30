@@ -81,7 +81,7 @@ def test_stop_service_unmanaged(mocker):
     mock_killpg.assert_any_call(5678, hm.process.signal.SIGTERM)
 
 def test_rotate_log(fs, mocker):
-    mocker.patch('hm.config.MAX_LOG_HISTORY', 3)
+    mocker.patch('hm.process.MAX_LOG_HISTORY', 3)
     fs.create_file('/fake/hm/app.log', contents='new_log')
     fs.create_file('/fake/hm/app.log.1', contents='old_log_1')
     fs.create_file('/fake/hm/app.log.2', contents='old_log_2')
@@ -94,14 +94,13 @@ def test_rotate_log(fs, mocker):
     assert Path('/fake/hm/app.log').read_text() == ''
 
 def test_run_supervised_success(mocker):
-    mocker.patch('hm.process.MAX_LOG_SIZE_MB', 0, create=True)
-    mocker.patch('hm.process.RESTART_DELAY', 1.0, create=True)
-    mocker.patch('hm.process.MAX_RESTART_DELAY', 10.0, create=True)
+    mocker.patch('hm.process.MAX_LOG_SIZE_MB', 0)
+    mocker.patch('hm.process.RESTART_DELAY', 1.0)
+    mocker.patch('hm.process.MAX_RESTART_DELAY', 10.0)
     mock_popen = mocker.MagicMock()
     mock_popen.pid = 9999
     mock_popen.poll.return_value = 0
     mock_popen_class = mocker.patch('subprocess.Popen', return_value=mock_popen)
-    mocker.patch('hm.config.MAX_LOG_SIZE_MB', 0)
     hm.process.run_supervised('app', [])
     mock_popen_class.assert_called_once()
 
@@ -123,10 +122,9 @@ def test_stop_service_unmanaged_force_kill(mocker):
     mock_kill.assert_any_call(5678, hm.process.signal.SIGKILL)
 
 def test_run_supervised_loop_and_signals(mocker, fs):
-    mocker.patch('hm.process.MAX_LOG_SIZE_MB', 1, create=True)
-    mocker.patch('hm.process.RESTART_DELAY', 0.1, create=True)
-    mocker.patch('hm.process.MAX_RESTART_DELAY', 10.0, create=True)
-    mocker.patch('hm.config.MAX_LOG_SIZE_MB', 1)
+    mocker.patch('hm.process.MAX_LOG_SIZE_MB', 1)
+    mocker.patch('hm.process.RESTART_DELAY', 0.1)
+    mocker.patch('hm.process.MAX_RESTART_DELAY', 10.0)
     mock_popen = mocker.MagicMock()
     mock_popen.pid = 9999
     mock_popen.poll.side_effect = [None, 1, 0, 0]
@@ -137,10 +135,9 @@ def test_run_supervised_loop_and_signals(mocker, fs):
     assert mock_popen_class.call_count == 2
 
 def test_run_supervised_signal_handler(mocker):
-    mocker.patch('hm.process.MAX_LOG_SIZE_MB', 0, create=True)
-    mocker.patch('hm.process.RESTART_DELAY', 1.0, create=True)
-    mocker.patch('hm.process.MAX_RESTART_DELAY', 10.0, create=True)
-    mocker.patch('hm.config.MAX_LOG_SIZE_MB', 0)
+    mocker.patch('hm.process.MAX_LOG_SIZE_MB', 0)
+    mocker.patch('hm.process.RESTART_DELAY', 1.0)
+    mocker.patch('hm.process.MAX_RESTART_DELAY', 10.0)
     mock_popen = mocker.MagicMock()
     mock_popen.pid = 9999
     mock_popen.poll.return_value = None
@@ -173,10 +170,9 @@ def test_stop_service_unmanaged_exceptions(mocker):
     hm.process.stop_service('app')
 
 def test_run_supervised_exceptions(mocker, fs):
-    mocker.patch('hm.process.MAX_LOG_SIZE_MB', 1, create=True)
-    mocker.patch('hm.process.RESTART_DELAY', 1.0, create=True)
-    mocker.patch('hm.process.MAX_RESTART_DELAY', 10.0, create=True)
-    mocker.patch('hm.config.MAX_LOG_SIZE_MB', 1)
+    mocker.patch('hm.process.MAX_LOG_SIZE_MB', 1)
+    mocker.patch('hm.process.RESTART_DELAY', 1.0)
+    mocker.patch('hm.process.MAX_RESTART_DELAY', 10.0)
     mock_popen = mocker.MagicMock()
     mock_popen.pid = 9999
     mock_popen.poll.return_value = 0
@@ -219,10 +215,9 @@ def test_stop_service_unmanaged_fallback_kill_check_fails(mocker):
     hm.process.stop_service('app')
 
 def test_run_supervised_handle_exit_lookup_error(mocker):
-    mocker.patch('hm.process.MAX_LOG_SIZE_MB', 0, create=True)
-    mocker.patch('hm.process.RESTART_DELAY', 1.0, create=True)
-    mocker.patch('hm.process.MAX_RESTART_DELAY', 10.0, create=True)
-    mocker.patch('hm.config.MAX_LOG_SIZE_MB', 0)
+    mocker.patch('hm.process.MAX_LOG_SIZE_MB', 0)
+    mocker.patch('hm.process.RESTART_DELAY', 1.0)
+    mocker.patch('hm.process.MAX_RESTART_DELAY', 10.0)
     mock_popen = mocker.MagicMock()
     mock_popen.pid = 9999
     mock_popen.poll.return_value = None
@@ -238,10 +233,9 @@ def test_run_supervised_handle_exit_lookup_error(mocker):
     hm.process.run_supervised('app', [])
 
 def test_run_supervised_log_rotation_exception(mocker, fs):
-    mocker.patch('hm.process.MAX_LOG_SIZE_MB', 1, create=True)
-    mocker.patch('hm.process.RESTART_DELAY', 1.0, create=True)
-    mocker.patch('hm.process.MAX_RESTART_DELAY', 10.0, create=True)
-    mocker.patch('hm.config.MAX_LOG_SIZE_MB', 1)
+    mocker.patch('hm.process.MAX_LOG_SIZE_MB', 1)
+    mocker.patch('hm.process.RESTART_DELAY', 1.0)
+    mocker.patch('hm.process.MAX_RESTART_DELAY', 10.0)
     mock_popen = mocker.MagicMock()
     mock_popen.pid = 9999
     mock_popen.poll.return_value = 0
@@ -252,10 +246,9 @@ def test_run_supervised_log_rotation_exception(mocker, fs):
     hm.process.run_supervised('app', [])
 
 def test_run_supervised_stop_flag_break(mocker):
-    mocker.patch('hm.process.MAX_LOG_SIZE_MB', 0, create=True)
-    mocker.patch('hm.process.RESTART_DELAY', 1.0, create=True)
-    mocker.patch('hm.process.MAX_RESTART_DELAY', 10.0, create=True)
-    mocker.patch('hm.config.MAX_LOG_SIZE_MB', 0)
+    mocker.patch('hm.process.MAX_LOG_SIZE_MB', 0)
+    mocker.patch('hm.process.RESTART_DELAY', 1.0)
+    mocker.patch('hm.process.MAX_RESTART_DELAY', 10.0)
     mock_popen = mocker.MagicMock()
     mock_popen.pid = 9999
     mock_popen.poll.return_value = None
@@ -271,10 +264,9 @@ def test_run_supervised_stop_flag_break(mocker):
     hm.process.run_supervised('app', [])
 
 def test_run_supervised_delay_cap(mocker):
-    mocker.patch('hm.process.MAX_LOG_SIZE_MB', 0, create=True)
-    mocker.patch('hm.process.RESTART_DELAY', 6.0, create=True)
-    mocker.patch('hm.process.MAX_RESTART_DELAY', 10.0, create=True)
-    mocker.patch('hm.config.MAX_LOG_SIZE_MB', 0)
+    mocker.patch('hm.process.MAX_LOG_SIZE_MB', 0)
+    mocker.patch('hm.process.RESTART_DELAY', 6.0)
+    mocker.patch('hm.process.MAX_RESTART_DELAY', 10.0)
     mock_popen = mocker.MagicMock()
     mock_popen.pid = 9999
     mock_popen.poll.side_effect = [1, 1, 0, 0]
@@ -292,7 +284,7 @@ def test_stop_service_unmanaged_skip_blank_lines(mocker):
     hm.process.stop_service('app')
 
 def test_rotate_log_no_history(fs, mocker):
-    mocker.patch('hm.config.MAX_LOG_HISTORY', 1)
+    mocker.patch('hm.process.MAX_LOG_HISTORY', 1)
     fs.create_file('/fake/hm/app.log', contents='new_log')
     fs.create_file('/fake/hm/app.log.1', contents='old_log_1')
 
@@ -310,10 +302,9 @@ def test_stop_service_killpg_lookup_error(mocker):
     assert mock_killpg.call_count == 1
 
 def test_run_supervised_stop_flag_break_before_print(mocker):
-    mocker.patch('hm.process.MAX_LOG_SIZE_MB', 0, create=True)
-    mocker.patch('hm.process.RESTART_DELAY', 1.0, create=True)
-    mocker.patch('hm.process.MAX_RESTART_DELAY', 10.0, create=True)
-    mocker.patch('hm.config.MAX_LOG_SIZE_MB', 0)
+    mocker.patch('hm.process.MAX_LOG_SIZE_MB', 0)
+    mocker.patch('hm.process.RESTART_DELAY', 1.0)
+    mocker.patch('hm.process.MAX_RESTART_DELAY', 10.0)
     mock_popen = mocker.MagicMock()
     mock_popen.pid = 9999
     mock_popen.poll.return_value = None
