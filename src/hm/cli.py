@@ -94,28 +94,61 @@ def ps():
     Lists running services and unmanaged hivemind processes.
     """
     services_meta = discover_services()
-    print(f"{'SERVICE':<15} {'STATUS':<10} {'PID':<8}")
-    print("-" * 40)
 
     supervisor_pids = set()
     running_count = 0
     stopped_count = 0
 
-    for svc in services_meta:
+    services_data = []
+
+    for svc, meta in services_meta.items():
         pid = read_pid(svc)
+        deps = ", ".join(meta.get("dependencies", []))
         if pid and is_running(pid):
-            print(f"{svc:<15} {'running':<10} {pid:<8}")
+            services_data.append({
+                "name": svc,
+                "status": "running",
+                "pid": str(pid),
+                "depends_on": deps
+            })
             supervisor_pids.add(str(pid))
             running_count += 1
         else:
-            print(f"{svc:<15} {'stopped':<10} -")
+            services_data.append({
+                "name": svc,
+                "status": "stopped",
+                "pid": "-",
+                "depends_on": deps
+            })
             remove_pid(svc)
             stopped_count += 1
 
-    print("-" * 40)
-    print(f"Services: {len(services_meta)}")
-    print(f"Running : {running_count}")
-    print(f"Stopped : {stopped_count}")
+    from .ui.console import is_interactive, console
+    from .ui.tables import render_services_table
+
+    if is_interactive():
+        table = render_services_table(services_data)
+        console.print(table)
+
+        # Add summary footer
+        from rich.text import Text
+        summary = Text.assemble(
+            ("Services : ", "bold"), str(len(services_meta)), "\n",
+            ("Running  : ", "bold green"), str(running_count), "\n",
+            ("Stopped  : ", "bold red"), str(stopped_count)
+        )
+        console.print(summary)
+    else:
+        # Fallback to plain text for pipe support
+        print(f"{'SERVICE':<15} {'STATUS':<10} {'PID':<8}")
+        print("-" * 40)
+        for s in services_data:
+            print(f"{s['name']:<15} {s['status']:<10} {s['pid']:<8}")
+
+        print("-" * 40)
+        print(f"Services: {len(services_meta)}")
+        print(f"Running : {running_count}")
+        print(f"Stopped : {stopped_count}")
 
     try:
         out = subprocess.check_output(["pgrep", "-af", HIVEMIND_BIN], text=True)
@@ -302,13 +335,32 @@ def doctor():
     from .config import PRESERVE_LOGS, MAX_LOG_HISTORY, MAX_LOG_SIZE_MB
     size_str = f"{MAX_LOG_SIZE_MB} MB" if MAX_LOG_SIZE_MB > 0 else "disabled"
 
-    print(f"{'Project Root':<13} : {PROJECT_ROOT}")
-    print(f"{'HM Home':<13} : {BASE_DIR}")
-    print(f"{'Config File':<13} : {config_str}")
-    print(f"{'Hivemind Bin':<13} : {bin_str}")
-    print(f"{'Preserve Logs':<13} : {str(PRESERVE_LOGS).lower()}")
-    print(f"{'Log History':<13} : {MAX_LOG_HISTORY}")
-    print(f"{'Max Log Size':<13} : {size_str}")
+    from .ui.console import is_interactive, console
+    from .ui.panels import render_doctor_panel
+
+    services_count = len(discover_services())
+
+    if is_interactive():
+        panel = render_doctor_panel(
+            project_root=str(PROJECT_ROOT),
+            hm_home=str(BASE_DIR),
+            config_file=config_str,
+            hivemind_bin=bin_str,
+            preserve_logs=str(PRESERVE_LOGS).lower(),
+            log_history=str(MAX_LOG_HISTORY),
+            max_log_size=size_str,
+            services_count=services_count
+        )
+        console.print(panel)
+    else:
+        print(f"{'Project Root':<13} : {PROJECT_ROOT}")
+        print(f"{'HM Home':<13} : {BASE_DIR}")
+        print(f"{'Config File':<13} : {config_str}")
+        print(f"{'Hivemind Bin':<13} : {bin_str}")
+        print(f"{'Preserve Logs':<13} : {str(PRESERVE_LOGS).lower()}")
+        print(f"{'Log History':<13} : {MAX_LOG_HISTORY}")
+        print(f"{'Max Log Size':<13} : {size_str}")
+        print(f"{'Service Count':<13} : {services_count}")
 
 
 def list_services():
@@ -319,9 +371,82 @@ def list_services():
     if not services_meta:
         print("No services detected.")
         return
-    print("Detected services:\n")
-    for svc in sorted(services_meta.keys()):
-        print(f"\u2713 {svc}")
+
+    from .ui.console import is_interactive, console
+    from .ui.trees import render_services_list
+
+    if is_interactive():
+        tree = render_services_list(services_meta)
+        console.print(tree)
+    else:
+        print("Detected services:\n")
+        for svc in sorted(services_meta.keys()):
+            print(f"\u2713 {svc}")
+
+
+def graph():
+    """
+    Renders dependency relationships of services.
+    """
+    services_meta = discover_services()
+    if not services_meta:
+        print("No services detected.")
+        return
+
+    from .ui.console import is_interactive, console
+    from .ui.trees import render_dependency_graph
+
+    if is_interactive():
+        tree = render_dependency_graph(services_meta)
+        console.print(tree)
+    else:
+        # Fallback to a simple text printout
+        print("Service Dependencies:\n")
+        for svc, meta in sorted(services_meta.items()):
+            deps = meta.get("dependencies", [])
+            if deps:
+                print(f"{svc} -> {', '.join(deps)}")
+            else:
+                print(f"{svc} (no dependencies)")
+
+
+def dashboard():
+    """
+    Starts the interactive TUI dashboard.
+    """
+    from .ui.console import is_interactive
+    if not is_interactive():
+        print("Error: hm dashboard requires an interactive terminal.")
+        sys.exit(1)
+
+    from .ui.dashboard import run_dashboard
+
+    def get_services_data():
+        services_meta = discover_services()
+        services_data = []
+        for svc, meta in services_meta.items():
+            pid = read_pid(svc)
+            deps = ", ".join(meta.get("dependencies", []))
+            if pid and is_running(pid):
+                services_data.append({
+                    "name": svc,
+                    "status": "running",
+                    "pid": str(pid),
+                    "depends_on": deps
+                })
+            else:
+                services_data.append({
+                    "name": svc,
+                    "status": "stopped",
+                    "pid": "-",
+                    "depends_on": deps
+                })
+        return services_data
+
+    def get_services_meta():
+        return discover_services()
+
+    run_dashboard(get_services_data, get_services_meta)
 
 
 def usage():
@@ -331,6 +456,8 @@ Usage:
   {cmd} init
   {cmd} doctor
   {cmd} list
+  {cmd} graph
+  {cmd} dashboard
   {cmd} start <service> [--no-follow]
   {cmd} stop <service>
   {cmd} restart <service>
@@ -359,6 +486,14 @@ def main():
 
     if cmd == "list":
         list_services()
+        return
+
+    if cmd == "graph":
+        graph()
+        return
+
+    if cmd == "dashboard":
+        dashboard()
         return
 
     if cmd == "_run":
