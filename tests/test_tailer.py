@@ -34,6 +34,7 @@ def test_tail_worker_interactive(fs, mocker, capsys):
     mocker.patch('hm.tailer.is_interactive', return_value=True)
     mocker.patch('hm.tailer.get_log_color', return_value='red')
     mock_console_print = mocker.patch('hm.tailer.console.print')
+    mocker.patch('time.sleep')
 
     hm.tailer.tail_worker('app', 0)
 
