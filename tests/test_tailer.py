@@ -57,6 +57,7 @@ def test_tail_worker_non_interactive(fs, mocker, capsys):
 
     mocker.patch('builtins.open', side_effect=mock_open)
     mocker.patch('hm.tailer.is_interactive', return_value=False)
+    mocker.patch('time.sleep')
 
     hm.tailer.tail_worker('app', 0)
 
