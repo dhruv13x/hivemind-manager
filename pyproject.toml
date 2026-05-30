@@ -1,0 +1,21 @@
+[project]
+name = "hivemind-manager"
+version = "0.1.0"
+description = "A developer CLI tool for managing Hivemind services"
+readme = "README.md"
+authors = [{ name = "dhruv13x" }]
+requires-python = ">=3.8"
+dependencies = []
+
+[project.scripts]
+hm = "hm.cli:main"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]
