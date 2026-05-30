@@ -13,4 +13,4 @@ ENV/
 htmlcov/
 *.log
 *.pid
-hm/
+/hm/
