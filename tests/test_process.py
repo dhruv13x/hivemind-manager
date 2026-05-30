@@ -292,7 +292,14 @@ def test_stop_service_unmanaged_skip_blank_lines(mocker):
     hm.process.stop_service('app')
 
 def test_rotate_log_no_history(fs, mocker):
-    pass
+    mocker.patch('hm.config.MAX_LOG_HISTORY', 1)
+    fs.create_file('/fake/hm/app.log', contents='new_log')
+    fs.create_file('/fake/hm/app.log.1', contents='old_log_1')
+
+    hm.process.rotate_log('app')
+
+    assert Path('/fake/hm/app.log.1').read_text() == 'new_log'
+    assert Path('/fake/hm/app.log').read_text() == ''
 
 def test_stop_service_killpg_lookup_error(mocker):
     hm.process.write_pid('app', 1234)
