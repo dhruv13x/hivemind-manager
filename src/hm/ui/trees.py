@@ -63,6 +63,6 @@ def render_dependency_graph(services_meta: Dict[str, Any]) -> Tree:
 
     for root in sorted(roots):
         root_node = tree.add(f"[bold green]{root}[/bold green]")
-        add_children(root_node, root, {root})
+        add_children(root_node, root, set())
 
     return tree

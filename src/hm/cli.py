@@ -420,11 +420,12 @@ def dashboard():
         sys.exit(1)
 
     from .ui.dashboard import run_dashboard
+    
+    services_meta_cached = discover_services()
 
     def get_services_data():
-        services_meta = discover_services()
         services_data = []
-        for svc, meta in services_meta.items():
+        for svc, meta in services_meta_cached.items():
             pid = read_pid(svc)
             deps = ", ".join(meta.get("dependencies", []))
             if pid and is_running(pid):
@@ -444,7 +445,7 @@ def dashboard():
         return services_data
 
     def get_services_meta():
-        return discover_services()
+        return services_meta_cached
 
     run_dashboard(get_services_data, get_services_meta)
 

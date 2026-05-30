@@ -18,7 +18,7 @@ def tail_worker(service: str, index: int):
     interactive = is_interactive()
     color = get_log_color(index)
 
-    with open(logfile, "r") as f:
+    with open(logfile, "r", encoding="utf-8", errors="replace") as f:
         f.seek(0, os.SEEK_END)
 
         while True:

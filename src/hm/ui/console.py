@@ -9,7 +9,7 @@ def is_interactive() -> bool:
     Returns True if the output is connected to an interactive TTY.
     Allows features like rich tables/panels.
     """
-    return sys.stdout.isatty()
+    return sys.stdout is not None and sys.stdout.isatty()
 
 def print_error(msg: str):
     """
