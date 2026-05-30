@@ -16,11 +16,12 @@ def tail_worker(service, color):
 
     with open(logfile, "r") as f:
         f.seek(0, os.SEEK_END)
+        print(f"{color}[{service}] Log tail started...{RESET}")
 
         while True:
             line = f.readline()
             if line:
-                print(line, end="")
+                print(f"{color}[{service}]{RESET} {line}", end="")
             else:
                 # auto-stop if service dead
                 pid = read_pid(service)

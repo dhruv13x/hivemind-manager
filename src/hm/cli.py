@@ -91,37 +91,35 @@ def os_setsid_safely():
 
 def ps():
     """
-    Lists running services and unmanaged hivemind processes.
+    Lists running services and unmanaged hivemind processes using Rich UI.
     """
+    from .ui import print_ps_table
     services_meta = discover_services()
-    print(f"{'SERVICE':<15} {'STATUS':<10} {'PID':<8}")
-    print("-" * 40)
-
     supervisor_pids = set()
-    running_count = 0
-    stopped_count = 0
 
-    for svc in services_meta:
+    services_data = []
+
+    for svc, meta in services_meta.items():
         pid = read_pid(svc)
         if pid and is_running(pid):
-            print(f"{svc:<15} {'running':<10} {pid:<8}")
+            status = "running"
             supervisor_pids.add(str(pid))
-            running_count += 1
         else:
-            print(f"{svc:<15} {'stopped':<10} -")
+            status = "stopped"
+            pid = None
             remove_pid(svc)
-            stopped_count += 1
 
-    print("-" * 40)
-    print(f"Services: {len(services_meta)}")
-    print(f"Running : {running_count}")
-    print(f"Stopped : {stopped_count}")
+        services_data.append({
+            "name": svc,
+            "status": status,
+            "pid": pid,
+            "dependencies": meta.get("dependencies", [])
+        })
 
+    extra = []
     try:
         out = subprocess.check_output(["pgrep", "-af", HIVEMIND_BIN], text=True)
         lines = out.strip().split("\n")
-
-        extra = []
 
         for line in lines:
             if not line.strip():
@@ -142,13 +140,10 @@ def ps():
 
             extra.append(line)
 
-        if extra:
-            print("\n[unmanaged hivemind processes]")
-            for l in extra:
-                print(" ", l)
-
     except subprocess.CalledProcessError:
         pass
+
+    print_ps_table(services_data, unmanaged=extra if extra else None)
 
 
 def status(service=None):
@@ -273,6 +268,7 @@ def doctor():
     """
     import shutil
     from .config import PROJECT_ROOT, BASE_DIR, HIVEMIND_BIN
+    from .ui import print_doctor_panels
 
     # 1. Config file check
     pyproject_path = PROJECT_ROOT / "pyproject.toml"
@@ -302,26 +298,84 @@ def doctor():
     from .config import PRESERVE_LOGS, MAX_LOG_HISTORY, MAX_LOG_SIZE_MB
     size_str = f"{MAX_LOG_SIZE_MB} MB" if MAX_LOG_SIZE_MB > 0 else "disabled"
 
-    print(f"{'Project Root':<13} : {PROJECT_ROOT}")
-    print(f"{'HM Home':<13} : {BASE_DIR}")
-    print(f"{'Config File':<13} : {config_str}")
-    print(f"{'Hivemind Bin':<13} : {bin_str}")
-    print(f"{'Preserve Logs':<13} : {str(PRESERVE_LOGS).lower()}")
-    print(f"{'Log History':<13} : {MAX_LOG_HISTORY}")
-    print(f"{'Max Log Size':<13} : {size_str}")
+    services_meta = discover_services()
+    active_supervisors = 0
+    for svc in services_meta:
+        pid = read_pid(svc)
+        if pid and is_running(pid):
+            active_supervisors += 1
+
+    diagnostics = {
+        "project_root": str(PROJECT_ROOT),
+        "hm_home": str(BASE_DIR),
+        "config_file": config_str,
+        "hivemind_bin": bin_str,
+        "preserve_logs": str(PRESERVE_LOGS).lower(),
+        "max_log_history": str(MAX_LOG_HISTORY),
+        "max_log_size": size_str,
+        "service_count": len(services_meta),
+        "active_supervisors": active_supervisors,
+    }
+
+    print_doctor_panels(diagnostics)
 
 
 def list_services():
     """
-    Lists all detected services in the project registry.
+    Lists all detected services in the project registry using Rich Tree.
     """
+    from .ui import print_list_tree
     services_meta = discover_services()
-    if not services_meta:
-        print("No services detected.")
-        return
-    print("Detected services:\n")
-    for svc in sorted(services_meta.keys()):
-        print(f"\u2713 {svc}")
+    print_list_tree(services_meta)
+
+
+def graph():
+    """
+    Displays the dependency graph of services.
+    """
+    from .ui import print_graph_tree
+    services_meta = discover_services()
+    print_graph_tree(services_meta)
+
+
+def dashboard():
+    """
+    Runs the interactive dashboard.
+    """
+    from .ui import run_dashboard
+
+    def fetch_data():
+        services_meta = discover_services()
+        services_data = []
+        running_count = 0
+        stopped_count = 0
+
+        for svc, meta in services_meta.items():
+            pid = read_pid(svc)
+            if pid and is_running(pid):
+                status = "running"
+                running_count += 1
+            else:
+                status = "stopped"
+                pid = None
+                stopped_count += 1
+
+            services_data.append({
+                "name": svc,
+                "status": status,
+                "pid": pid,
+                "dependencies": meta.get("dependencies", [])
+            })
+
+        stats = {
+            "total": len(services_meta),
+            "running": running_count,
+            "stopped": stopped_count
+        }
+
+        return services_data, stats
+
+    run_dashboard(fetch_data)
 
 
 def usage():
@@ -331,6 +385,8 @@ Usage:
   {cmd} init
   {cmd} doctor
   {cmd} list
+  {cmd} graph
+  {cmd} dashboard
   {cmd} start <service> [--no-follow]
   {cmd} stop <service>
   {cmd} restart <service>
@@ -359,6 +415,14 @@ def main():
 
     if cmd == "list":
         list_services()
+        return
+
+    if cmd == "graph":
+        graph()
+        return
+
+    if cmd == "dashboard":
+        dashboard()
         return
 
     if cmd == "_run":
