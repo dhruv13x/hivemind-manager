@@ -41,6 +41,8 @@ keywords = [
 
 dependencies = [
   "tomli; python_version < '3.11'",
+  "rich>=13.0.0",
+  "psutil>=5.9.0",
 ]
 
 [project.urls]

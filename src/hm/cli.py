@@ -94,61 +94,90 @@ def ps():
     Lists running services and unmanaged hivemind processes.
     """
     services_meta = discover_services()
-    print(f"{'SERVICE':<15} {'STATUS':<10} {'PID':<8}")
-    print("-" * 40)
+    from .ui.console import is_interactive, console
+    from .ui.tables import build_ps_table
 
+    services_data = []
     supervisor_pids = set()
-    running_count = 0
-    stopped_count = 0
 
-    for svc in services_meta:
+    for svc, meta in services_meta.items():
         pid = read_pid(svc)
         if pid and is_running(pid):
-            print(f"{svc:<15} {'running':<10} {pid:<8}")
+            status = "running"
             supervisor_pids.add(str(pid))
-            running_count += 1
         else:
-            print(f"{svc:<15} {'stopped':<10} -")
+            status = "stopped"
             remove_pid(svc)
-            stopped_count += 1
+            pid = None
 
-    print("-" * 40)
-    print(f"Services: {len(services_meta)}")
-    print(f"Running : {running_count}")
-    print(f"Stopped : {stopped_count}")
+        services_data.append({
+            "name": svc,
+            "status": status,
+            "pid": pid,
+            "dependencies": meta.get("dependencies", []),
+            "logfile": f"{svc}.log"
+        })
 
+    extra = []
     try:
         out = subprocess.check_output(["pgrep", "-af", HIVEMIND_BIN], text=True)
         lines = out.strip().split("\n")
-
-        extra = []
 
         for line in lines:
             if not line.strip():
                 continue
             parts = line.split()
-            pid = parts[0]
+            c_pid = parts[0]
 
             try:
                 ppid = subprocess.check_output(
-                    ["ps", "-o", "ppid=", "-p", pid],
+                    ["ps", "-o", "ppid=", "-p", c_pid],
                     text=True
                 ).strip()
             except subprocess.CalledProcessError:
                 continue
 
-            if ppid in supervisor_pids or pid in supervisor_pids:
+            if ppid in supervisor_pids or c_pid in supervisor_pids:
                 continue
 
             extra.append(line)
+
+    except subprocess.CalledProcessError:
+        pass
+
+    if is_interactive():
+        table = build_ps_table(services_data)
+        console.print(table)
+        if extra:
+            console.print("\n[yellow][unmanaged hivemind processes][/yellow]")
+            from rich.markup import escape
+            for l in extra:
+                console.print(f"  {escape(l)}")
+    else:
+        # Plain text fallback
+        print(f"{'SERVICE':<15} {'STATUS':<10} {'PID':<8}")
+        print("-" * 40)
+
+        running_count = 0
+        stopped_count = 0
+
+        for s_data in services_data:
+            pid_str = str(s_data["pid"]) if s_data["pid"] is not None else "-"
+            print(f"{s_data['name']:<15} {s_data['status']:<10} {pid_str:<8}")
+            if s_data["status"] == "running":
+                running_count += 1
+            else:
+                stopped_count += 1
+
+        print("-" * 40)
+        print(f"Services: {len(services_data)}")
+        print(f"Running : {running_count}")
+        print(f"Stopped : {stopped_count}")
 
         if extra:
             print("\n[unmanaged hivemind processes]")
             for l in extra:
                 print(" ", l)
-
-    except subprocess.CalledProcessError:
-        pass
 
 
 def status(service=None):
@@ -276,6 +305,7 @@ def doctor():
 
     # 1. Config file check
     pyproject_path = PROJECT_ROOT / "pyproject.toml"
+    has_config_warning = False
     if pyproject_path.is_file():
         has_config = False
         try:
@@ -289,26 +319,46 @@ def doctor():
             config_str = str(pyproject_path)
         else:
             config_str = f"{pyproject_path} (exists, but [tool.hm] section is missing)"
+            has_config_warning = True
     else:
         config_str = "None"
+        has_config_warning = True
 
     # 2. Hivemind binary check
     hivemind_path = shutil.which(HIVEMIND_BIN)
+    has_bin_warning = False
     if hivemind_path:
         bin_str = f"{hivemind_path}"
     else:
         bin_str = f"{HIVEMIND_BIN} [NOT FOUND in PATH]"
+        has_bin_warning = True
 
     from .config import PRESERVE_LOGS, MAX_LOG_HISTORY, MAX_LOG_SIZE_MB
     size_str = f"{MAX_LOG_SIZE_MB} MB" if MAX_LOG_SIZE_MB > 0 else "disabled"
 
-    print(f"{'Project Root':<13} : {PROJECT_ROOT}")
-    print(f"{'HM Home':<13} : {BASE_DIR}")
-    print(f"{'Config File':<13} : {config_str}")
-    print(f"{'Hivemind Bin':<13} : {bin_str}")
-    print(f"{'Preserve Logs':<13} : {str(PRESERVE_LOGS).lower()}")
-    print(f"{'Log History':<13} : {MAX_LOG_HISTORY}")
-    print(f"{'Max Log Size':<13} : {size_str}")
+    from .ui.console import is_interactive, console
+    if is_interactive():
+        from .ui.panels import build_doctor_panels
+        panels = build_doctor_panels(
+            project_root=str(PROJECT_ROOT),
+            hm_home=str(BASE_DIR),
+            config_file=config_str,
+            hivemind_bin=bin_str,
+            preserve_logs=str(PRESERVE_LOGS).lower(),
+            log_history=str(MAX_LOG_HISTORY),
+            max_log_size=size_str,
+            has_config_warning=has_config_warning,
+            has_bin_warning=has_bin_warning
+        )
+        console.print(panels)
+    else:
+        print(f"{'Project Root':<13} : {PROJECT_ROOT}")
+        print(f"{'HM Home':<13} : {BASE_DIR}")
+        print(f"{'Config File':<13} : {config_str}")
+        print(f"{'Hivemind Bin':<13} : {bin_str}")
+        print(f"{'Preserve Logs':<13} : {str(PRESERVE_LOGS).lower()}")
+        print(f"{'Log History':<13} : {MAX_LOG_HISTORY}")
+        print(f"{'Max Log Size':<13} : {size_str}")
 
 
 def list_services():
@@ -319,9 +369,17 @@ def list_services():
     if not services_meta:
         print("No services detected.")
         return
-    print("Detected services:\n")
-    for svc in sorted(services_meta.keys()):
-        print(f"\u2713 {svc}")
+
+    from .ui.console import is_interactive, console
+
+    if is_interactive():
+        from .ui.trees import build_service_tree
+        tree = build_service_tree(services_meta)
+        console.print(tree)
+    else:
+        print("Detected services:\n")
+        for svc in sorted(services_meta.keys()):
+            print(f"\u2713 {svc}")
 
 
 def usage():
@@ -331,6 +389,8 @@ Usage:
   {cmd} init
   {cmd} doctor
   {cmd} list
+  {cmd} graph
+  {cmd} dashboard
   {cmd} start <service> [--no-follow]
   {cmd} stop <service>
   {cmd} restart <service>
@@ -359,6 +419,72 @@ def main():
 
     if cmd == "list":
         list_services()
+        return
+
+    if cmd == "graph":
+        services_meta = discover_services()
+        from .ui.console import is_interactive, console
+        from .ui.trees import build_dependency_graph
+        if is_interactive():
+            tree = build_dependency_graph(services_meta)
+            console.print(tree)
+        else:
+            print("Dependency graph requires an interactive terminal.")
+        return
+
+    if cmd == "dashboard":
+        from .ui.console import is_interactive
+        if not is_interactive():
+            print("Error: hm dashboard requires an interactive terminal.")
+            sys.exit(1)
+
+        from .ui.dashboard import run_dashboard
+
+        def provide_dashboard_data():
+            meta = discover_services()
+            services_data = []
+            supervisor_pids = set()
+
+            import psutil
+
+            for svc, sm in meta.items():
+                pid = read_pid(svc)
+                if pid and is_running(pid):
+                    status = "running"
+                    supervisor_pids.add(str(pid))
+                else:
+                    status = "stopped"
+                    pid = None
+
+                services_data.append({
+                    "name": svc,
+                    "status": status,
+                    "pid": pid,
+                    "dependencies": sm.get("dependencies", []),
+                    "logfile": f"{svc}.log"
+                })
+
+            unmanaged = []
+            for proc in psutil.process_iter(['pid', 'name', 'cmdline', 'ppid']):
+                try:
+                    cmdline = proc.info.get('cmdline')
+                    if cmdline and any(HIVEMIND_BIN in part for part in cmdline):
+                        c_pid = str(proc.info['pid'])
+                        ppid = str(proc.info['ppid'])
+
+                        if c_pid in supervisor_pids or ppid in supervisor_pids:
+                            continue
+
+                        unmanaged.append(" ".join(cmdline))
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
+
+            return {
+                "services": services_data,
+                "unmanaged": unmanaged
+            }
+
+        run_dashboard(provide_dashboard_data)
         return
 
     if cmd == "_run":
