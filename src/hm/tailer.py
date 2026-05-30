@@ -1,44 +1,35 @@
 import os
 import time
 import threading
+import sys
 from .process import log_file, read_pid, is_running
-from .ui.console import is_interactive, console
-from .ui.styles import get_log_color
 
 def tail_worker(service: str, index: int):
     """
-    Tails the log file for a specific service and color-prefixes output.
-    Terminates when the service stops running.
+    Tails the log file for a specific service using a raw binary passthrough.
+    This preserves all ANSI/OSC codes and line endings (including \r) exactly
+     as written by the worker.
     """
     logfile = log_file(service)
 
     while not logfile.exists():
         time.sleep(0.1)
 
-    interactive = is_interactive()
-    color = get_log_color(index)
-
-    with open(logfile, "r", encoding="utf-8", errors="replace") as f:
+    with open(logfile, "rb") as f:
         f.seek(0, os.SEEK_END)
 
         while True:
-            line = f.readline()
-            if line:
-                if interactive:
-                    from rich.markup import escape
-                    console.print(f"[{color}][{service}][/{color}] {escape(line)}", end="")
-                else:
-                    print(f"[{service}] {line}", end="")
+            chunk = f.read(8192)
+            if chunk:
+                sys.stdout.buffer.write(chunk)
+                sys.stdout.buffer.flush()
             else:
                 # auto-stop if service dead
                 pid = read_pid(service)
                 if not pid or not is_running(pid):
-                    if interactive:
-                        console.print(f"[{color}][{service}] stopped[/{color}]")
-                    else:
-                        print(f"[{service}] stopped")
+                    print(f"[{service}] stopped")
                     break
-                time.sleep(0.2)
+                time.sleep(0.1)
 
 
 def multi_tail(services):

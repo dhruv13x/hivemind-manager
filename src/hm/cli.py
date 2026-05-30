@@ -24,6 +24,13 @@ from .process import (
 )
 from .tailer import multi_tail
 
+from importlib.metadata import version, PackageNotFoundError
+
+try:
+    VERSION = version("hivemind-manager")
+except PackageNotFoundError:
+    VERSION = "unknown"
+
 def start(service, follow=True, extra_args=None, started_set=None):
     """
     Starts a service supervisor. Checks and starts dependencies first if they are not running.
@@ -456,6 +463,8 @@ def usage():
     cmd = Path(sys.argv[0]).name
     print(f"""
 Usage:
+  {cmd} --help | -h
+  {cmd} --version | -v
   {cmd} init
   {cmd} doctor
   {cmd} list
@@ -475,9 +484,17 @@ Usage:
 def main():
     if len(sys.argv) < 2:
         usage()
-        sys.exit(1)
+        sys.exit(0)
 
     cmd = sys.argv[1]
+
+    if cmd in ("-h", "--help"):
+        usage()
+        sys.exit(0)
+
+    if cmd in ("-v", "--version"):
+        print(f"hivemind-manager v{VERSION}")
+        return
 
     if cmd == "init":
         init()

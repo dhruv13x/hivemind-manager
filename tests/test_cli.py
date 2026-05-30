@@ -375,7 +375,7 @@ def test_cli_main_no_args(mocker, capsys):
     mocker.patch('sys.argv', ['hm'])
     with pytest.raises(SystemExit) as e:
         hm.cli.main()
-    assert e.value.code == 1
+    assert e.value.code == 0
 
 def test_cli_main_commands(mocker):
     commands = [
