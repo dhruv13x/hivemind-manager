@@ -1,10 +1,23 @@
 import os
 import time
 import threading
-from .config import COLORS, RESET
+from rich.console import Console
+from .config import COLORS
 from .process import log_file, read_pid, is_running
 
-def tail_worker(service, color):
+# Map legacy color codes to rich color names for compatibility and ease of use
+RICH_COLORS = [
+    "cyan",
+    "yellow",
+    "magenta",
+    "green",
+    "blue",
+    "red",
+]
+
+console = Console()
+
+def tail_worker(service, color_name):
     """
     Tails the log file for a specific service and color-prefixes output.
     Terminates when the service stops running.
@@ -20,12 +33,14 @@ def tail_worker(service, color):
         while True:
             line = f.readline()
             if line:
-                print(line, end="")
+                # Prefix the line with the colored service name
+                prefix = f"[{color_name}][{service}][/{color_name}] "
+                console.print(f"{prefix}{line.strip()}", markup=True, highlight=False)
             else:
                 # auto-stop if service dead
                 pid = read_pid(service)
                 if not pid or not is_running(pid):
-                    print(f"{color}[{service}] stopped{RESET}")
+                    console.print(f"[{color_name}][{service}] stopped[/{color_name}]")
                     break
                 time.sleep(0.2)
 
@@ -34,12 +49,12 @@ def multi_tail(services):
     """
     Spawns log tailing threads for multiple services.
     """
-    print(f"Tailing logs: {', '.join(services)}\n")
+    console.print(f"[bold]Tailing logs:[/bold] {', '.join(services)}\n")
 
     threads = []
 
     for i, svc in enumerate(services):
-        color = COLORS[i % len(COLORS)]
+        color = RICH_COLORS[i % len(RICH_COLORS)]
         t = threading.Thread(target=tail_worker, args=(svc, color), daemon=True)
         t.start()
         threads.append(t)
@@ -48,4 +63,4 @@ def multi_tail(services):
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
-        print("\nStopped log tail")
+        console.print("\n[bold yellow]Stopped log tail[/bold yellow]")

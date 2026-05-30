@@ -10,7 +10,8 @@ from .process import (
     log_file,
     stop_service,
     run_supervised,
-    remove_pid
+    remove_pid,
+    log_file
 )
 from .tailer import multi_tail
 
@@ -93,35 +94,24 @@ def ps():
     """
     Lists running services and unmanaged hivemind processes.
     """
+    from .ui import render_ps_table
     services_meta = discover_services()
-    print(f"{'SERVICE':<15} {'STATUS':<10} {'PID':<8}")
-    print("-" * 40)
 
     supervisor_pids = set()
-    running_count = 0
-    stopped_count = 0
+    running_pids = {}
 
     for svc in services_meta:
         pid = read_pid(svc)
         if pid and is_running(pid):
-            print(f"{svc:<15} {'running':<10} {pid:<8}")
+            running_pids[svc] = pid
             supervisor_pids.add(str(pid))
-            running_count += 1
         else:
-            print(f"{svc:<15} {'stopped':<10} -")
             remove_pid(svc)
-            stopped_count += 1
 
-    print("-" * 40)
-    print(f"Services: {len(services_meta)}")
-    print(f"Running : {running_count}")
-    print(f"Stopped : {stopped_count}")
-
+    extra = []
     try:
         out = subprocess.check_output(["pgrep", "-af", HIVEMIND_BIN], text=True)
         lines = out.strip().split("\n")
-
-        extra = []
 
         for line in lines:
             if not line.strip():
@@ -141,14 +131,10 @@ def ps():
                 continue
 
             extra.append(line)
-
-        if extra:
-            print("\n[unmanaged hivemind processes]")
-            for l in extra:
-                print(" ", l)
-
     except subprocess.CalledProcessError:
         pass
+
+    render_ps_table(services_meta, running_pids, extra)
 
 
 def status(service=None):
@@ -273,6 +259,7 @@ def doctor():
     """
     import shutil
     from .config import PROJECT_ROOT, BASE_DIR, HIVEMIND_BIN
+    from .ui import render_doctor_panels
 
     # 1. Config file check
     pyproject_path = PROJECT_ROOT / "pyproject.toml"
@@ -302,26 +289,118 @@ def doctor():
     from .config import PRESERVE_LOGS, MAX_LOG_HISTORY, MAX_LOG_SIZE_MB
     size_str = f"{MAX_LOG_SIZE_MB} MB" if MAX_LOG_SIZE_MB > 0 else "disabled"
 
-    print(f"{'Project Root':<13} : {PROJECT_ROOT}")
-    print(f"{'HM Home':<13} : {BASE_DIR}")
-    print(f"{'Config File':<13} : {config_str}")
-    print(f"{'Hivemind Bin':<13} : {bin_str}")
-    print(f"{'Preserve Logs':<13} : {str(PRESERVE_LOGS).lower()}")
-    print(f"{'Log History':<13} : {MAX_LOG_HISTORY}")
-    print(f"{'Max Log Size':<13} : {size_str}")
+    services_meta = discover_services()
+    active_supervisors = 0
+    for svc in services_meta:
+        pid = read_pid(svc)
+        if pid and is_running(pid):
+            active_supervisors += 1
+
+    diagnostics = {
+        "project_root": PROJECT_ROOT,
+        "hm_home": BASE_DIR,
+        "config_file": config_str,
+        "hivemind_bin": bin_str,
+        "preserve_logs": str(PRESERVE_LOGS).lower(),
+        "log_history": MAX_LOG_HISTORY,
+        "max_log_size": size_str,
+        "service_count": len(services_meta),
+        "active_supervisors": active_supervisors
+    }
+
+    render_doctor_panels(diagnostics)
 
 
 def list_services():
     """
     Lists all detected services in the project registry.
     """
+    from .ui import render_service_tree
     services_meta = discover_services()
     if not services_meta:
         print("No services detected.")
         return
     print("Detected services:\n")
-    for svc in sorted(services_meta.keys()):
-        print(f"\u2713 {svc}")
+    render_service_tree(services_meta, title="Service Hierarchy")
+
+
+def graph():
+    """
+    Displays the dependency hierarchy of services using a tree.
+    """
+    from .ui import render_service_tree
+    services_meta = discover_services()
+    render_service_tree(services_meta, title="Service Hierarchy")
+
+
+def dashboard():
+    """
+    Shows a live dashboard of services.
+    """
+    from rich.live import Live
+    from rich.console import Console
+    from .ui import create_dashboard_layout
+
+    console = Console()
+
+    # Store recent logs across loops
+    recent_logs = []
+    log_positions = {}
+
+    # helper for reading logs
+    def update_logs(services_meta):
+        # Very simple tail implementation for the dashboard
+        for svc in services_meta:
+            pid = read_pid(svc)
+            if pid and is_running(pid):
+                logfile = log_file(svc)
+                if logfile.exists():
+                    try:
+                        with open(logfile, "r") as f:
+                            pos = log_positions.get(svc, 0)
+
+                            # if log file shrunk, it might have rotated.
+                            # resetting position to 0 to catch up on new file.
+                            f.seek(0, 2)
+                            size = f.tell()
+                            if size < pos:
+                                pos = 0
+
+                            f.seek(pos)
+
+                            new_lines = f.readlines()
+                            if new_lines:
+                                for l in new_lines:
+                                    line_str = l.strip()
+                                    if line_str:
+                                        recent_logs.append(f"[cyan]{svc}[/cyan]: {line_str}")
+
+                            log_positions[svc] = f.tell()
+
+                    except Exception:
+                        pass
+
+        # Keep only the last 20
+        while len(recent_logs) > 20:
+            recent_logs.pop(0)
+
+    try:
+        with Live(console=console, screen=True, auto_refresh=False) as live:
+            while True:
+                services_meta = discover_services()
+                running_pids = {}
+                for svc in services_meta:
+                    pid = read_pid(svc)
+                    if pid and is_running(pid):
+                        running_pids[svc] = pid
+
+                update_logs(services_meta)
+
+                layout = create_dashboard_layout(services_meta, running_pids, recent_logs)
+                live.update(layout, refresh=True)
+                time.sleep(1)
+    except KeyboardInterrupt:
+        pass
 
 
 def usage():
@@ -331,6 +410,8 @@ Usage:
   {cmd} init
   {cmd} doctor
   {cmd} list
+  {cmd} graph
+  {cmd} dashboard
   {cmd} start <service> [--no-follow]
   {cmd} stop <service>
   {cmd} restart <service>
@@ -359,6 +440,14 @@ def main():
 
     if cmd == "list":
         list_services()
+        return
+
+    if cmd == "graph":
+        graph()
+        return
+
+    if cmd == "dashboard":
+        dashboard()
         return
 
     if cmd == "_run":
