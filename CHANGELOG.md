@@ -1,5 +1,17 @@
 # Changelog
 
+## [4.1.0] - 2026-06-04
+### Features
+- implement persistent Inode-aware log tailing that survives service restarts and rotations
+- add log truncation detection to reset tailing position automatically
+- show last 2KB of log history when starting tailing
+### Bug Fixes
+- refactor `hm restart` to avoid redundant service stop calls and "not running" messages
+- centralize service validation across all CLI commands
+- fix Inode baseline refresh logic for reliable persistent tailing
+### Other Changes
+- update CLI usage documentation to include `--no-follow` for restart command
+
 ## [4.0.0] - 2026-05-31
 ### Other Changes
 - update

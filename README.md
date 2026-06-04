@@ -196,15 +196,16 @@ hm stop infra
 ```bash
 hm restart infra
 ```
+Without log following:
+```bash
+hm restart infra --no-follow
+```
 
 ### View Logs
 ```bash
 hm logs infra
 ```
-Multiple services:
-```bash
-hm logs infra transfer uab
-```
+`hm` uses Inode-aware tailing, meaning the log stream **persists across service restarts and rotations**. You don't need to re-run the command when a service cycles.
 
 ### Start All Services
 ```bash
