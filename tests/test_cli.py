@@ -431,14 +431,16 @@ def test_cli_main_run(mocker):
 
 def test_cli_main_logs(mocker, capsys):
     mocker.patch('hm.cli.discover_services', return_value={'app': {}})
-    mocker.patch('sys.argv', ['hm', 'logs'])
-    with pytest.raises(SystemExit):
-        hm.cli.main()
-    out, _ = capsys.readouterr()
-    assert "Usage:" in out
-
-    mocker.patch('sys.argv', ['hm', 'logs', 'app'])
     mock_tail = mocker.patch('hm.cli.multi_tail')
+
+    # Now valid: hm logs (defaults to all)
+    mocker.patch('sys.argv', ['hm', 'logs'])
+    hm.cli.main()
+    mock_tail.assert_called_once_with(['app'])
+
+    # Explicit service: hm logs app
+    mock_tail.reset_mock()
+    mocker.patch('sys.argv', ['hm', 'logs', 'app'])
     hm.cli.main()
     mock_tail.assert_called_once_with(['app'])
 

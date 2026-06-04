@@ -551,7 +551,8 @@ def main():
             status(None)
             return
 
-        if len(sys.argv) < 3:
+        # 'logs' is now allowed to have 0 extra args (defaults to all)
+        if cmd != "logs" and len(sys.argv) < 3:
             usage()
             sys.exit(1)
 
