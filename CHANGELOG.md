@@ -1,5 +1,10 @@
 # Changelog
 
+## [5.0.0] - 2026-06-04
+### Other Changes
+- fix test hang by updating test_cli_main_logs for zero-arg support
+- remove diagnostic version marker from logs
+
 ## [4.4.0] - 2026-06-04
 ### Features
 - make `hm logs` tail all services by default if no service is specified
