@@ -86,8 +86,7 @@ def multi_tail(services):
     """
     Spawns log tailing threads for multiple services.
     """
-    # Version marker [v4.1] ensures we are running the Inode-aware code
-    print(f"Tailing logs [v4.1]: {', '.join(services)}\n")
+    print(f"Tailing logs: {', '.join(services)}\n")
     sys.stdout.flush()
 
     threads = []
