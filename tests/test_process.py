@@ -41,6 +41,31 @@ def test_remove_pid():
 def test_remove_pid_not_exist():
     hm.process.remove_pid('app')
 
+def test_get_service_uptime(fs, mocker):
+    # Case 1: No PID file
+    assert hm.process.get_service_uptime('app') == "-"
+
+    # Case 2: Just started (< 60s)
+    hm.process.write_pid('app', 1234)
+    mocker.patch('time.time', return_value=time.time() + 30)
+    assert hm.process.get_service_uptime('app') == "30s"
+
+    # Case 3: Running for minutes (< 1h)
+    mocker.patch('time.time', return_value=time.time() + 120)
+    assert hm.process.get_service_uptime('app') == "2m"
+
+    # Case 4: Running for hours (< 1d)
+    mocker.patch('time.time', return_value=time.time() + 7200)
+    assert hm.process.get_service_uptime('app') == "2h"
+
+    # Case 5: Running for days
+    mocker.patch('time.time', return_value=time.time() + 172800)
+    assert hm.process.get_service_uptime('app') == "2d"
+
+    # Case 6: Exception handling
+    mocker.patch('hm.process.pid_file', side_effect=Exception("stat failed"))
+    assert hm.process.get_service_uptime('app') == "-"
+
 def test_is_running(mocker):
     mock_kill = mocker.patch('os.kill')
     mock_kill.return_value = None

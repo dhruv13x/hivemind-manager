@@ -40,6 +40,28 @@ def read_pid(service):
         return None
 
 
+def get_service_uptime(service):
+    """Returns a short uptime string (e.g., 30s, 20m, 2h, 4d) based on PID file mtime."""
+    try:
+        f = pid_file(service)
+        if not f.exists():
+            return "-"
+        mtime = f.stat().st_mtime
+        delta = time.time() - mtime
+        if delta < 0:
+            delta = 0
+        if delta < 60:
+            return f"{int(delta)}s"
+        elif delta < 3600:
+            return f"{int(delta // 60)}m"
+        elif delta < 86400:
+            return f"{int(delta // 3600)}h"
+        else:
+            return f"{int(delta // 86400)}d"
+    except Exception:
+        return "-"
+
+
 def write_pid(service, pid):
     pid_file(service).write_text(str(pid))
 

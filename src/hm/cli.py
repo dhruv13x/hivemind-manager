@@ -21,6 +21,7 @@ from .process import (
     remove_pid,
     rotate_log,
     write_pid,
+    get_service_uptime,
 )
 from .tailer import multi_tail
 
@@ -123,7 +124,8 @@ def ps():
                 "name": svc,
                 "status": "running",
                 "pid": str(pid),
-                "depends_on": deps
+                "depends_on": deps,
+                "uptime": get_service_uptime(svc)
             })
             supervisor_pids.add(str(pid))
             running_count += 1
@@ -132,7 +134,8 @@ def ps():
                 "name": svc,
                 "status": "stopped",
                 "pid": "-",
-                "depends_on": deps
+                "depends_on": deps,
+                "uptime": "-"
             })
             remove_pid(svc)
             stopped_count += 1
@@ -154,12 +157,12 @@ def ps():
         console.print(summary)
     else:
         # Fallback to plain text for pipe support
-        print(f"{'SERVICE':<15} {'STATUS':<10} {'PID':<8}")
-        print("-" * 40)
+        print(f"{'SERVICE':<15} {'STATUS':<10} {'PID':<8} {'UPTIME':<10}")
+        print("-" * 50)
         for s in services_data:
-            print(f"{s['name']:<15} {s['status']:<10} {s['pid']:<8}")
+            print(f"{s['name']:<15} {s['status']:<10} {s['pid']:<8} {s['uptime']:<10}")
 
-        print("-" * 40)
+        print("-" * 50)
         print(f"Services: {len(services_meta)}")
         print(f"Running : {running_count}")
         print(f"Stopped : {stopped_count}")
@@ -442,14 +445,16 @@ def dashboard():
                     "name": svc,
                     "status": "running",
                     "pid": str(pid),
-                    "depends_on": deps
+                    "depends_on": deps,
+                    "uptime": get_service_uptime(svc)
                 })
             else:
                 services_data.append({
                     "name": svc,
                     "status": "stopped",
                     "pid": "-",
-                    "depends_on": deps
+                    "depends_on": deps,
+                    "uptime": "-"
                 })
         return services_data
 

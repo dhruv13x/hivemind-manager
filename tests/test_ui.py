@@ -23,8 +23,8 @@ def test_render_services_table():
     ]
     table = render_services_table(services)
     assert isinstance(table, Table)
-    # 4 columns: SERVICE, STATUS, PID, DEPENDS ON
-    assert len(table.columns) == 4
+    # 5 columns: SERVICE, STATUS, PID, UPTIME, DEPENDS ON
+    assert len(table.columns) == 5
 
 def test_render_doctor_panel():
     panel = render_doctor_panel(

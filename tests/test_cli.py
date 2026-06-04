@@ -492,6 +492,7 @@ def test_cli_ps_interactive(mocker, capsys):
 
     mocker.patch('hm.cli.read_pid', side_effect=[1234, None])
     mocker.patch('hm.cli.is_running', return_value=True)
+    mocker.patch('hm.cli.get_service_uptime', return_value="10s")
     mock_remove = mocker.patch('hm.cli.remove_pid')
 
     # We must patch get_unmanaged_processes
@@ -504,6 +505,10 @@ def test_cli_ps_interactive(mocker, capsys):
     hm.cli.ps()
 
     mock_render.assert_called_once()
+    # Check that uptime was passed to renderer
+    args, _ = mock_render.call_args
+    assert args[0][0]['uptime'] == "10s"
+    
     mock_print.assert_called() # one for table, maybe one for unmanaged
     mock_remove.assert_called_once_with('app2')
 
@@ -512,6 +517,7 @@ def test_cli_ps_non_interactive(mocker, capsys):
     mocker.patch('hm.cli.discover_services', return_value=services_meta)
     mocker.patch('hm.cli.read_pid', return_value=1234)
     mocker.patch('hm.cli.is_running', return_value=True)
+    mocker.patch('hm.cli.get_service_uptime', return_value="1h")
 
     mocker.patch('subprocess.check_output', return_value="9999 /path/hivemind other.hm\n")
     mocker.patch('hm.ui.console.is_interactive', return_value=False)
@@ -520,6 +526,8 @@ def test_cli_ps_non_interactive(mocker, capsys):
     out, _ = capsys.readouterr()
     assert "app" in out
     assert "1234" in out
+    assert "UPTIME" in out
+    assert "1h" in out
     assert "unmanaged hivemind processes" in out
     assert "9999" in out
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.2.0] - 2026-06-04
+### Features
+- add 'UPTIME' column to `hm ps` and dashboard for better service health monitoring
+- implement short duration formatting (s, m, h, d) based on PID file lifecycle
+
 ## [4.1.0] - 2026-06-04
 ### Features
 - implement persistent Inode-aware log tailing that survives service restarts and rotations

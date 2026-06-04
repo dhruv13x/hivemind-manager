@@ -18,6 +18,7 @@ def render_services_table(services: List[Dict[str, Any]]) -> Table:
     table.add_column("SERVICE", style="cyan", no_wrap=True)
     table.add_column("STATUS", justify="left")
     table.add_column("PID", justify="left")
+    table.add_column("UPTIME", justify="left")
     table.add_column("DEPENDS ON", justify="left")
 
     for svc in services:
@@ -32,11 +33,14 @@ def render_services_table(services: List[Dict[str, Any]]) -> Table:
         pid = str(svc.get("pid", "-"))
         if not pid:
              pid = "-"
+             
+        uptime = str(svc.get("uptime", "-"))
 
         table.add_row(
             svc["name"],
             status_text,
             pid,
+            uptime,
             depends
         )
 

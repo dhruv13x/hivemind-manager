@@ -49,7 +49,7 @@ def test_tail_worker_robust_inode_rotation(fs, mocker):
     # Check that we got BOTH pieces of content across the rotation
     all_writes = b"".join([c.args[0] for c in mock_write.call_args_list])
     assert b"content 1\n" in all_writes
-    assert b"new file detected" in all_writes
+    assert b"logs rotated (new file)" in all_writes
     assert b"content 2\n" in all_writes
 
 def test_tail_worker_truncation_no_rotation(fs, mocker):
