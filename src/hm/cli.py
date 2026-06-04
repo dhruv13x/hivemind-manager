@@ -217,7 +217,7 @@ def status(service=None):
         remove_pid(service)
 
 
-def up():
+def up(follow=False):
     """
     Starts all discovered services in dynamic order.
     """
@@ -226,6 +226,9 @@ def up():
     for svc in services_meta:
         start(svc, follow=False, started_set=started_set)
     print("\nAll services started.\n")
+
+    if follow:
+        multi_tail(list(services_meta.keys()))
 
 
 def down():
@@ -481,7 +484,7 @@ Usage:
   {cmd} status [service]
   {cmd} logs <service> [service2...]
   {cmd} ps
-  {cmd} up
+  {cmd} up [--follow]
   {cmd} down
 """)
 
@@ -532,7 +535,8 @@ def main():
 
     if cmd in ("up", "down"):
         if cmd == "up":
-            up()
+            follow = "--follow" in sys.argv
+            up(follow=follow)
         else:
             down()
         return

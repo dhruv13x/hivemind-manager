@@ -211,6 +211,10 @@ hm logs infra
 ```bash
 hm up
 ```
+Start all and follow combined logs:
+```bash
+hm up --follow
+```
 
 ### Stop All Services
 ```bash

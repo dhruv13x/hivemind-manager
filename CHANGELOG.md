@@ -1,5 +1,9 @@
 # Changelog
 
+## [4.3.0] - 2026-06-04
+### Features
+- add `--follow` flag to `hm up` to tail all logs after starting all services
+
 ## [4.2.0] - 2026-06-04
 ### Features
 - add 'UPTIME' column to `hm ps` and dashboard for better service health monitoring

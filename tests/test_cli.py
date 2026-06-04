@@ -87,12 +87,23 @@ def test_cli_up(mocker, capsys):
     services_meta = {'app1': {}, 'app2': {}}
     mocker.patch('hm.cli.discover_services', return_value=services_meta)
     mock_start = mocker.patch('hm.cli.start')
+    mock_multi_tail = mocker.patch('hm.cli.multi_tail')
 
-    hm.cli.up()
-
+    # Without follow
+    hm.cli.up(follow=False)
     assert mock_start.call_count == 2
+    mock_multi_tail.assert_not_called()
     out, _ = capsys.readouterr()
     assert "All services started." in out
+
+    # With follow
+    mock_start.reset_mock()
+    hm.cli.up(follow=True)
+    assert mock_start.call_count == 2
+    mock_multi_tail.assert_called_once()
+    # verify keys are passed
+    args, _ = mock_multi_tail.call_args
+    assert set(args[0]) == {'app1', 'app2'}
 
 def test_cli_down(mocker, capsys):
     services_meta = {'app1': {}, 'app2': {}}
@@ -384,7 +395,6 @@ def test_cli_main_commands(mocker):
         ('list', 'hm.cli.list_services'),
         ('graph', 'hm.cli.graph'),
         ('dashboard', 'hm.cli.dashboard'),
-        ('up', 'hm.cli.up'),
         ('down', 'hm.cli.down')
     ]
 
@@ -393,6 +403,17 @@ def test_cli_main_commands(mocker):
         mocker.patch('sys.argv', ['hm', cmd])
         hm.cli.main()
         mock_cmd.assert_called_once()
+
+    # Special case for 'up' to test --follow
+    mock_up = mocker.patch('hm.cli.up')
+    mocker.patch('sys.argv', ['hm', 'up'])
+    hm.cli.main()
+    mock_up.assert_called_with(follow=False)
+
+    mock_up.reset_mock()
+    mocker.patch('sys.argv', ['hm', 'up', '--follow'])
+    hm.cli.main()
+    mock_up.assert_called_with(follow=True)
 
 def test_cli_main_run_no_args(mocker, capsys):
     mocker.patch('sys.argv', ['hm', '_run'])
