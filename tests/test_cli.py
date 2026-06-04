@@ -409,9 +409,10 @@ def test_cli_main_run(mocker):
     mock_run.assert_called_once_with('app', [])
 
 def test_cli_main_logs(mocker, capsys):
+    mocker.patch('hm.cli.discover_services', return_value={'app': {}})
     mocker.patch('sys.argv', ['hm', 'logs'])
-    hm.cli.main()
-    # It just calls usage
+    with pytest.raises(SystemExit):
+        hm.cli.main()
     out, _ = capsys.readouterr()
     assert "Usage:" in out
 
@@ -421,6 +422,7 @@ def test_cli_main_logs(mocker, capsys):
     mock_tail.assert_called_once_with(['app'])
 
 def test_cli_main_start_stop_restart(mocker, capsys):
+    mocker.patch('hm.cli.discover_services', return_value={'app': {}})
     mocker.patch('sys.argv', ['hm', 'invalid_cmd'])
     with pytest.raises(SystemExit):
         hm.cli.main()
@@ -444,10 +446,11 @@ def test_cli_main_start_stop_restart(mocker, capsys):
 
     mocker.patch('sys.argv', ['hm', 'restart', 'app'])
     hm.cli.main()
-    mock_stop.assert_called_with('app')
+    # start handles stop internally
     mock_start.assert_called_with('app', True, [])
 
 def test_cli_main_status(mocker, capsys):
+    mocker.patch('hm.cli.discover_services', return_value={'app': {}})
     mocker.patch('sys.argv', ['hm', 'status'])
     mock_status = mocker.patch('hm.cli.status')
     hm.cli.main()

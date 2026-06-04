@@ -472,7 +472,7 @@ Usage:
   {cmd} dashboard
   {cmd} start <service> [--no-follow]
   {cmd} stop <service>
-  {cmd} restart <service>
+  {cmd} restart <service> [--no-follow]
   {cmd} status [service]
   {cmd} logs <service> [service2...]
   {cmd} ps
@@ -536,39 +536,49 @@ def main():
         ps()
         return
 
-    if cmd == "status":
-        if len(sys.argv) == 2:
+    # Commands that target services
+    if cmd in ("start", "stop", "restart", "logs", "status"):
+        if cmd == "status" and len(sys.argv) == 2:
             status(None)
-        else:
-            status(sys.argv[2])
-        return
+            return
 
-    if cmd == "logs":
         if len(sys.argv) < 3:
             usage()
+            sys.exit(1)
+
+        services_meta = discover_services()
+        
+        if cmd == "logs":
+            targets = sys.argv[2:]
+            for t in targets:
+                if t not in services_meta:
+                    print(f"Unknown service: {t}")
+                    sys.exit(1)
+            multi_tail(targets)
             return
-        multi_tail(sys.argv[2:])
+
+        service = sys.argv[2]
+        if service not in services_meta:
+            print(f"Unknown service: {service}")
+            sys.exit(1)
+
+        if cmd == "status":
+            status(service)
+            return
+
+        extra_args = sys.argv[3:]
+        follow = True
+        if "--no-follow" in extra_args:
+            follow = False
+            extra_args.remove("--no-follow")
+
+        if cmd == "start":
+            start(service, follow, extra_args)
+        elif cmd == "stop":
+            stop_service(service)
+        elif cmd == "restart":
+            start(service, follow, extra_args)
         return
 
-    if len(sys.argv) < 3:
-        usage()
-        sys.exit(1)
-
-    service = sys.argv[2]
-    extra_args = sys.argv[3:]
-
-    follow = True
-    if "--no-follow" in extra_args:
-        follow = False
-        extra_args.remove("--no-follow")
-
-    if cmd == "start":
-        start(service, follow, extra_args)
-    elif cmd == "stop":
-        stop_service(service)
-    elif cmd == "restart":
-        stop_service(service)
-        start(service, follow, extra_args)
-    else:
-        usage()
-
+    usage()
+    sys.exit(1)
