@@ -559,6 +559,10 @@ def main():
         
         if cmd == "logs":
             targets = sys.argv[2:]
+            if not targets:
+                # Default to tailing all discovered services
+                targets = list(services_meta.keys())
+            
             for t in targets:
                 if t not in services_meta:
                     print(f"Unknown service: {t}")

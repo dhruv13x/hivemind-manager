@@ -1,5 +1,11 @@
 # Changelog
 
+## [4.4.0] - 2026-06-04
+### Features
+- make `hm logs` tail all services by default if no service is specified
+- implement line-aware log tailing to prevent interleaving of lines from different services
+- improve output buffering and flushing for smoother real-time log viewing
+
 ## [4.3.0] - 2026-06-04
 ### Features
 - add `--follow` flag to `hm up` to tail all logs after starting all services

@@ -35,6 +35,7 @@ def tail_worker(service: str, index: int):
                     f.seek(0)
 
                 last_pos = f.tell()
+                buffer = bytearray()
 
                 while True:
                     # 1. Check if file is still there and hasn't changed Inode
@@ -54,11 +55,23 @@ def tail_worker(service: str, index: int):
                         sys.stdout.buffer.flush()
                         f.seek(0)
                         last_pos = 0
+                        buffer.clear()
                     
                     # 3. Read data
                     chunk = f.read(16384)
                     if chunk:
-                        sys.stdout.buffer.write(chunk)
+                        buffer.extend(chunk)
+                        
+                        # Process complete lines to prevent interleaving
+                        while True:
+                            newline_idx = buffer.find(b'\n')
+                            if newline_idx == -1:
+                                break
+                            
+                            line = buffer[:newline_idx + 1]
+                            sys.stdout.buffer.write(line)
+                            del buffer[:newline_idx + 1]
+                        
                         sys.stdout.buffer.flush()
                         last_pos = f.tell()
                         continue
