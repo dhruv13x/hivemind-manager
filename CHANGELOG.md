@@ -1,5 +1,7 @@
 # Changelog
 
+## [6.0.0] - 2026-06-05
+
 ## [5.0.0] - 2026-06-04
 ### Other Changes
 - fix test hang by updating test_cli_main_logs for zero-arg support
