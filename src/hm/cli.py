@@ -490,6 +490,16 @@ Usage:
 
 
 def main():
+    show_banner = True
+    if len(sys.argv) >= 2:
+        cmd = sys.argv[1]
+        if cmd in ("-v", "--version", "_run"):
+            show_banner = False
+    
+    if show_banner:
+        from .banner import print_logo
+        print_logo()
+
     if len(sys.argv) < 2:
         usage()
         sys.exit(0)
